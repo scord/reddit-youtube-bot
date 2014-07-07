@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-type Session struct {
+type redditSession struct {
 	client  *http.Client
 	modhash string `json:"modhash"`
 }
 
-// submits post to reddit
-func (session *Session) Submit(title string, linkURL string, subreddit string) error {
+// Submit submits a post to reddit
+func (session *redditSession) Submit(title string, linkURL string, subreddit string) error {
 
 	submitURL := "http://www.reddit.com/api/submit"
 
@@ -38,7 +38,7 @@ func (session *Session) Submit(title string, linkURL string, subreddit string) e
 	return nil
 }
 
-type Response struct {
+type response struct {
 	JSON struct {
 		Errors [][]string
 		Data   struct {
@@ -48,7 +48,7 @@ type Response struct {
 }
 
 // sends a general post request to reddit, updating the session with any new cookies or modhash
-func (session *Session) postRequest(postURL string, postValues url.Values) (*http.Response, error) {
+func (session *redditSession) postRequest(postURL string, postValues url.Values) (*http.Response, error) {
 
 	resp, err := session.client.PostForm(postURL, postValues)
 
@@ -66,7 +66,7 @@ func (session *Session) postRequest(postURL string, postValues url.Values) (*htt
 
 	defer resp.Body.Close()
 
-	r := &Response{}
+	r := &response{}
 
 	err = json.NewDecoder(resp.Body).Decode(r)
 
@@ -88,10 +88,10 @@ func (session *Session) postRequest(postURL string, postValues url.Values) (*htt
 
 }
 
-// Creates a new reddit session which contains cookies and the modhash
-func Login(user, pass string) (*Session, error) {
+// Login creates a new reddit session which contains cookies and the modhash
+func Login(user, pass string) (*redditSession, error) {
 
-	session := &Session{}
+	session := &redditSession{}
 
 	cookieJar, _ := cookiejar.New(nil)
 

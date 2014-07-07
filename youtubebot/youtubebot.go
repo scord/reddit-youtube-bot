@@ -6,12 +6,12 @@ import (
 	"net/http"
 )
 
-type Video struct {
+type video struct {
 	Title string
-	Id    string
+	ID    string
 }
 
-// creates a new youtube service
+// Initialise creates a new youtube service
 func Initialise(APIKey string) (*youtube.Service, error) {
 	client := &http.Client{Transport: &transport.APIKey{Key: APIKey}}
 	service, err := youtube.New(client)
@@ -21,33 +21,33 @@ func Initialise(APIKey string) (*youtube.Service, error) {
 	return service, nil
 }
 
-// returns the latest uploaded video from a channel
-func LatestVideo(service *youtube.Service, channelName string) (Video, error) {
+// LatestVideo returns the latest uploaded video from a channel
+func LatestVideo(service *youtube.Service, channelName string) (video, error) {
 
 	call := service.Channels.List("contentDetails").ForUsername(channelName)
 	response, err := call.Do()
 
 	if err != nil {
-		return Video{}, err
+		return video{}, err
 	}
 
 	channel := response.Items[0]
 
-	playlistId := channel.ContentDetails.RelatedPlaylists.Uploads
+	playlistID := channel.ContentDetails.RelatedPlaylists.Uploads
 
 	playlistCall := service.PlaylistItems.List("snippet").
-		PlaylistId(playlistId).
+		PlaylistId(playlistID).
 		MaxResults(50)
 
 	playlistResponse, err := playlistCall.Do()
 
 	if err != nil {
-		return Video{}, err
+		return video{}, err
 	}
 
 	title := playlistResponse.Items[0].Snippet.Title
-	videoId := playlistResponse.Items[0].Snippet.ResourceId.VideoId
+	videoID := playlistResponse.Items[0].Snippet.ResourceId.VideoId
 
-	return Video{title, videoId}, nil
+	return video{title, videoID}, nil
 
 }

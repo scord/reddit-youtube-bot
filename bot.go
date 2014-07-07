@@ -7,12 +7,13 @@ import (
 	"time"
 )
 
-const APIKey = "" //add your own API Key
+//add your own API Key
+const apiKey = ""
 
 // start point
 func main() {
 
-	service, err := youtubebot.Initialise(APIKey)
+	service, err := youtubebot.Initialise(apiKey)
 
 	if err != nil {
 		fmt.Println("Could not create new Youtube client")
@@ -50,7 +51,7 @@ func main() {
 		if latestVideo != newVideo {
 			newVideo = latestVideo
 
-			err := postLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.Id), subreddit)
+			err := postLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.ID), subreddit)
 
 			if err != nil {
 				fmt.Println("Could not post video")
