@@ -5,37 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 )
 
 type Session struct {
-	Cookie  *http.Cookie
-	Modhash string `json:"modhash"`
+	client  *http.Client
+	modhash string `json:"modhash"`
 }
 
-var client http.Client
+// submits post to reddit
+func (session *Session) Submit(title string, linkURL string, subreddit string) error {
 
-func PostLink(user, pass, title, linkURL, subreddit string) error {
-
-	session, err := Login(user, pass)
-
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Login Successful")
-
-	err = Submit(title, linkURL, subreddit, session)
-
-	fmt.Println(err)
-
-	return err
-}
-
-func Submit(title string, linkURL string, subreddit string, session *Session) error {
-
-	submitURL := fmt.Sprintf("http://www.reddit.com/api/submit")
+	submitURL := "http://www.reddit.com/api/submit"
 
 	values := url.Values{
 		"url":   {linkURL},
@@ -43,31 +26,16 @@ func Submit(title string, linkURL string, subreddit string, session *Session) er
 		"sr":    {subreddit},
 		"title": {title},
 		"r":     {subreddit},
-		"uh":    {session.Modhash},
+		"uh":    {session.modhash},
 	}
 
-	resp, err := Post(submitURL, values, session)
+	_, err := session.postRequest(submitURL, values)
 
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
-
-	r := &Response{}
-
-	err = json.NewDecoder(resp.Body).Decode(r)
-
-	if len(r.JSON.Errors) != 0 {
-		var msg []string
-		for _, k := range r.JSON.Errors {
-			msg = append(msg, k[1])
-		}
-		return errors.New(strings.Join(msg, ", "))
-	}
-
 	return nil
-
 }
 
 type Response struct {
@@ -79,62 +47,32 @@ type Response struct {
 	}
 }
 
-func Post(postURL string, postValues url.Values, session *Session) (*http.Response, error) {
+// sends a general post request to reddit, updating the session with any new cookies or modhash
+func (session *Session) postRequest(postURL string, postValues url.Values) (*http.Response, error) {
 
-	req, err := http.NewRequest("POST", postURL+"?"+postValues.Encode(), nil)
+	resp, err := session.client.PostForm(postURL, postValues)
 
 	if err != nil {
 		return nil, err
 	}
-
-	if session.Cookie != nil {
-		req.AddCookie(session.Cookie)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return resp, errors.New(resp.Status)
 	}
 
-	return resp, nil
-
-}
-
-func Login(user, pass string) (*Session, error) {
-
-	session := &Session{}
-
-	loginURL := fmt.Sprintf("http://www.reddit.com/api/login/%s", user)
-
-	values := url.Values{
-		"user":     {user},
-		"passwd":   {pass},
-		"api_type": {"json"},
-	}
-
-	resp, err := Post(loginURL, values, session)
-
-	defer resp.Body.Close()
-
 	if err != nil {
 		return nil, err
 	}
 
-	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "reddit_session" {
-			session.Cookie = cookie
-		}
-	}
+	defer resp.Body.Close()
 
 	r := &Response{}
 
 	err = json.NewDecoder(resp.Body).Decode(r)
+
+	if err != nil {
+		return nil, err
+	}
 
 	if len(r.JSON.Errors) != 0 {
 		var msg []string
@@ -144,7 +82,36 @@ func Login(user, pass string) (*Session, error) {
 		return nil, errors.New(strings.Join(msg, ", "))
 	}
 
-	session.Modhash = r.JSON.Data.Modhash
+	session.modhash = r.JSON.Data.Modhash
+
+	return resp, nil
+
+}
+
+// Creates a new reddit session which contains cookies and the modhash
+func Login(user, pass string) (*Session, error) {
+
+	session := &Session{}
+
+	cookieJar, _ := cookiejar.New(nil)
+
+	session.client = &http.Client{
+		Jar: cookieJar,
+	}
+
+	loginURL := fmt.Sprintf("http://www.reddit.com/api/login/%s", user)
+
+	values := url.Values{
+		"user":     {user},
+		"passwd":   {pass},
+		"api_type": {"json"},
+	}
+
+	_, err := session.postRequest(loginURL, values)
+
+	if err != nil {
+		return nil, err
+	}
 
 	return session, nil
 }

@@ -39,22 +39,36 @@ func main() {
 	fmt.Println("Enter Bot Password")
 	fmt.Scanf("%s", &pass)
 
-	newVideo := LatestVideo(service, channel)
+	newVideo := latestVideo(service, channel)
+	postLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.Id), subreddit)
 
 	for {
 		time.Sleep(5 * time.Second)
 		fmt.Println("Looking for new upload")
-		latestVideo := LatestVideo(service, channel)
+		latestVideo := latestVideo(service, channel)
 		if latestVideo != newVideo {
 			newVideo = latestVideo
-			reddit.PostLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.Id), subreddit)
+			postLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.Id), subreddit)
 		} else {
 			fmt.Println("No new videos")
 		}
 	}
 }
 
-func LatestVideo(service *youtube.Service, channelName string) (video Video) {
+func postLink(user, pass, title, linkURL, subreddit string) error {
+
+	session, err := reddit.Login(user, pass)
+
+	if err != nil {
+		return err
+	}
+
+	err = session.Submit(title, linkURL, subreddit)
+
+	return err
+}
+
+func latestVideo(service *youtube.Service, channelName string) (video Video) {
 
 	call := service.Channels.List("contentDetails").ForUsername(channelName)
 	response, err := call.Do()
