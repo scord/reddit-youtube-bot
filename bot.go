@@ -1,27 +1,18 @@
 package main
 
 import (
-	"code.google.com/p/google-api-go-client/googleapi/transport"
-	"code.google.com/p/google-api-go-client/youtube/v3"
-
 	"fmt"
 	"github.com/scord/reddit-youtube-bot/reddit"
-	"net/http"
+	"github.com/scord/reddit-youtube-bot/youtubebot"
 	"time"
 )
 
 const APIKey = "" //add your own API Key
 
-type Video struct {
-	Title string
-	Id    string
-}
-
+// start point
 func main() {
 
-	client := &http.Client{Transport: &transport.APIKey{Key: APIKey}}
-
-	service, err := youtube.New(client)
+	service, err := youtubebot.Initialise(APIKey)
 
 	if err != nil {
 		fmt.Println("Could not create new Youtube client")
@@ -39,22 +30,41 @@ func main() {
 	fmt.Println("Enter Bot Password")
 	fmt.Scanf("%s", &pass)
 
-	newVideo := latestVideo(service, channel)
-	postLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.Id), subreddit)
+	latestVideo, err := youtubebot.LatestVideo(service, channel)
+
+	if err != nil {
+		fmt.Println("Could not get latest video")
+	}
 
 	for {
 		time.Sleep(5 * time.Second)
+
 		fmt.Println("Looking for new upload")
-		latestVideo := latestVideo(service, channel)
+
+		newVideo, err := youtubebot.LatestVideo(service, channel)
+
+		if err != nil {
+			fmt.Println("Could not get latest video")
+		}
+
 		if latestVideo != newVideo {
 			newVideo = latestVideo
-			postLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.Id), subreddit)
+
+			err := postLink(user, pass, newVideo.Title, fmt.Sprintf("https://www.youtube.com/watch?v=%s", newVideo.Id), subreddit)
+
+			if err != nil {
+				fmt.Println("Could not post video")
+			}
+
+			fmt.Printf("Posted video: %s\n", newVideo.Title)
+
 		} else {
 			fmt.Println("No new videos")
 		}
 	}
 }
 
+// logs into reddit and submits post
 func postLink(user, pass, title, linkURL, subreddit string) error {
 
 	session, err := reddit.Login(user, pass)
@@ -65,37 +75,9 @@ func postLink(user, pass, title, linkURL, subreddit string) error {
 
 	err = session.Submit(title, linkURL, subreddit)
 
-	return err
-}
-
-func latestVideo(service *youtube.Service, channelName string) (video Video) {
-
-	call := service.Channels.List("contentDetails").ForUsername(channelName)
-	response, err := call.Do()
-
 	if err != nil {
-		fmt.Println("Call failed")
+		return err
 	}
 
-	channel := response.Items[0]
-
-	playlistId := channel.ContentDetails.RelatedPlaylists.Uploads
-
-	playlistCall := service.PlaylistItems.List("snippet").
-		PlaylistId(playlistId).
-		MaxResults(50)
-
-	playlistResponse, err := playlistCall.Do()
-
-	if err != nil {
-		// The playlistItems.list method call returned an error.
-		fmt.Println("Error fetching playlist items")
-	}
-	title := playlistResponse.Items[0].Snippet.Title
-	fmt.Println(title)
-
-	videoId := playlistResponse.Items[0].Snippet.ResourceId.VideoId
-
-	return Video{title, videoId}
-
+	return nil
 }
