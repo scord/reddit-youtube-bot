@@ -11,6 +11,12 @@ import (
 // start point
 func Run(channel, subreddit, user, pass, apiKey string) error {
 
+	if channel == "" || subreddit == "" || user == "" || pass == "" {
+		return errors.New("Missing details")
+	} else if apiKey == "" {
+		return errors.New("Invalid API Key")
+	}
+
 	service, err := youtubebot.Initialise(apiKey)
 
 	if err != nil {
@@ -25,6 +31,8 @@ func Run(channel, subreddit, user, pass, apiKey string) error {
 
 	for {
 		time.Sleep(5 * time.Second)
+
+		fmt.Println("looking")
 
 		newVideo, err := youtubebot.LatestVideo(service, channel)
 

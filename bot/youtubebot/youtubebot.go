@@ -15,9 +15,11 @@ type video struct {
 func Initialise(APIKey string) (*youtube.Service, error) {
 	client := &http.Client{Transport: &transport.APIKey{Key: APIKey}}
 	service, err := youtube.New(client)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return service, nil
 }
 

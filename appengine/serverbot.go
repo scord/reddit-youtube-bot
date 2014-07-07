@@ -2,9 +2,12 @@ package serverbot
 
 import (
 	"fmt"
+	"github.com/scord/reddit-youtube-bot/bot"
 	"html/template"
 	"net/http"
 )
+
+const apiKey = ""
 
 func init() {
 	http.HandleFunc("/", root)
@@ -16,11 +19,21 @@ func root(w http.ResponseWriter, r *http.Request) {
 }
 
 func run(w http.ResponseWriter, r *http.Request) {
-	err := botRunningTemplate.Execute(w, r.FormValue("user"))
+
+	err := botRunningTemplate.Execute(w, "RUNNING")
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	err = bot.Run(r.FormValue("chan"), r.FormValue("sub"), r.FormValue("user"), r.FormValue("pass"), apiKey)
+
+	if err != nil {
+		err = botRunningTemplate.Execute(w, "FAIL")
+		return
+	}
+
 }
 
 var botRunningTemplate = template.Must(template.New("run").Parse(botRunningHTML))
@@ -46,7 +59,7 @@ const botSettingsHTML = `
 const botRunningHTML = `
 <html>
   <body>
-      {{.}} is running successfully
+      {{.}}
     <form action="/" method="post">
       <div><input type="submit" value="Stop"></div>
     </form>
